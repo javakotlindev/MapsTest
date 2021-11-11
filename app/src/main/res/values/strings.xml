@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">MapsTestNeva</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="search">Поиск</string>
+    <string name="enable_location_to_continue">Чтобы продолжить, включите на устройстве геолокацию</string>
+    <string name="no_thanks">Нет спасибо</string>
+    <string name="enable_location">Предоставьте приложению разрешение на определение местоположения</string>
+</resources>
