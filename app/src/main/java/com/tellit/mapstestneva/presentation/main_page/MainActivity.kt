@@ -33,6 +33,7 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
+import com.google.firebase.messaging.FirebaseMessaging
 import com.tellit.mapstestneva.R
 import com.tellit.mapstestneva.databinding.ActivityMainBinding
 import com.tellit.mapstestneva.utils.ZoomEvent
@@ -92,6 +93,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         binding.zoomMinus.setOnClickListener {
             zoomOnClick(ZoomEvent.MINUS.name)
         }
+
+        FirebaseMessaging.getInstance().subscribeToTopic("some-test-topic")
+        FirebaseMessaging.getInstance().subscribeToTopic("news")
     }
 
 
@@ -119,16 +123,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    private fun zoomOnClick(type: String){
-        when(type){
-            ZoomEvent.PLUS.name-> {
-                if (zoom !=21f){
-                zoom += 1f
+    private fun zoomOnClick(type: String) {
+        when (type) {
+            ZoomEvent.PLUS.name -> {
+                if (zoom != 21f) {
+                    zoom += 1f
                 }
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, zoom))
             }
-            ZoomEvent.MINUS.name-> {
-                if (zoom !=0f){
+            ZoomEvent.MINUS.name -> {
+                if (zoom != 0f) {
                     zoom -= 1f
                 }
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, zoom))
@@ -307,7 +311,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         binding.searchTxt.text = place.name
 
                         place.latLng?.let { tashkentLatLng = it }
-                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, 11f))
 
 
                         val myPositionIcon = MarkerOptions().apply {
@@ -319,8 +322,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                                 )
                             )
                         }
-                        myPositionMarker?.remove()
                         myPositionMarker = mMap.addMarker(myPositionIcon)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, 11f))
                     }
                 }
                 AutocompleteActivity.RESULT_ERROR -> {
