@@ -2,6 +2,7 @@ package com.tellit.mapstestneva.presentation.main_page
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -27,12 +29,17 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.widget.Autocomplete
+import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.tellit.mapstestneva.R
 import com.tellit.mapstestneva.databinding.ActivityMainBinding
+import com.tellit.mapstestneva.utils.ZoomEvent
 import com.tellit.mapstestneva.utils.getBitmapDescriptorFromVector
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.*
+
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -45,6 +52,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var tashkentLatLng = LatLng(41.311081, 69.240562)
     private var myPositionLatLng: LatLng? = null
     private var myPositionMarker: Marker? = null
+    var placesClient: PlacesClient? = null
+    private val AUTOCOMPLETE_REQUEST_CODE = 1
+    private var zoom: Float = 14f
 
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -52,8 +62,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        Places.initialize(this, getString(R.string.google_maps_key))
-
+        val apiKey = getString(R.string.google_maps_key)
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, apiKey)
+        }
+        placesClient = Places.createClient(this)
 
         val mf = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mf.getMapAsync(this)
@@ -68,19 +81,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 geoReqAlertDialog().show()
             }
         }
+        binding.searchTxt.setOnClickListener {
+            openGetLocation()
+        }
 
-        val AUTOCOMPLETE_REQUEST_CODE = 1
+        binding.zoomPlus.setOnClickListener {
+            zoomOnClick(ZoomEvent.PLUS.name)
+        }
 
-        // Set the fields to specify which types of place data to
-        // return after the user has made a selection.
-        val fields = listOf(Place.Field.ID, Place.Field.NAME)
+        binding.zoomMinus.setOnClickListener {
+            zoomOnClick(ZoomEvent.MINUS.name)
+        }
+    }
 
-        // Start the autocomplete intent.
-        val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.FULLSCREEN, fields)
+
+    private fun openGetLocation() {
+        val fields = listOf(Place.Field.LAT_LNG, Place.Field.ID, Place.Field.NAME)
+        val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
             .build(this)
         startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE)
     }
-
 
     @RequiresApi(Build.VERSION_CODES.M)
     private fun geoReqAlertDialog() = AlertDialog.Builder(this).apply {
@@ -95,29 +115,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, 11f))
-
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, zoom))
 
     }
 
-
-//    private fun calculateDistance(distanceInMetres: Double): String {
-//        return when {
-//            distanceInMetres >= 1000 -> {
-//                "${getString(com.google.android.gms.location.R.string.distance_from_you)} ${
-//                    (distanceInMetres / 1000).toBigDecimal().setScale(1, RoundingMode.FLOOR)
-//                } ${getString(com.google.android.gms.location.R.string.distance_km)}"
-//            }
-//            else -> {
-//                "${getString(com.google.android.gms.location.R.string.distance_from_you)} ${(distanceInMetres).toInt()} ${
-//                    getString(
-//                        com.google.android.gms.location.R.string.distance_meter
-//                    )
-//                }"
-//            }
-//        }
-//    }
+    private fun zoomOnClick(type: String){
+        when(type){
+            ZoomEvent.PLUS.name-> {
+                if (zoom !=21f){
+                zoom += 1f
+                }
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, zoom))
+            }
+            ZoomEvent.MINUS.name-> {
+                if (zoom !=0f){
+                    zoom -= 1f
+                }
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, zoom))
+            }
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.M)
     @SuppressLint("MissingPermission")
@@ -145,9 +162,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                                     )
                                 )
                             }
+                            tashkentLatLng = it
                             myPositionMarker?.remove()
                             myPositionMarker = mMap.addMarker(myPositionIcon)
-                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 14f))
+                            mMap.animateCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    tashkentLatLng,
+                                    14f
+                                )
+                            )
                         }
                     } else {
                         requestNewLocationData()
@@ -256,9 +279,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    /**
-     * Displays a dialog with error message explaining that the location permission is missing. Request it on App Settings page
-     */
+
     private fun showMissingPermissionErrorAndOpenAppSettings() {
         Toast.makeText(this, getString(R.string.enable_location), Toast.LENGTH_LONG)
             .show()
@@ -277,7 +298,46 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == AUTOCOMPLETE_REQUEST_CODE) {
+            when (resultCode) {
+                Activity.RESULT_OK -> {
+                    data?.let {
+                        val place = Autocomplete.getPlaceFromIntent(data)
+                        binding.searchTxt.text = place.name
 
+                        place.latLng?.let { tashkentLatLng = it }
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(tashkentLatLng, 11f))
+
+
+                        val myPositionIcon = MarkerOptions().apply {
+                            place.latLng?.let { it1 -> position(it1) }
+                            icon(
+                                getBitmapDescriptorFromVector(
+                                    this@MainActivity,
+                                    R.drawable.ic_position
+                                )
+                            )
+                        }
+                        myPositionMarker?.remove()
+                        myPositionMarker = mMap.addMarker(myPositionIcon)
+                    }
+                }
+                AutocompleteActivity.RESULT_ERROR -> {
+                    // TODO: Handle the error.
+                    data?.let {
+                        val status = Autocomplete.getStatusFromIntent(data)
+                        Log.i("TAG", status.statusMessage)
+                    }
+                }
+                Activity.RESULT_CANCELED -> {
+                    // The user canceled the operation.
+                }
+            }
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
+    }
 
 }
 
